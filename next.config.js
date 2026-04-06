@@ -7,6 +7,7 @@ const nextConfig = {
     domains: ["avatars.githubusercontent.com", "githubusercontent.com"],
     formats: ["image/avif", "image/webp"],
   },
+  turbopack: {},
 };
 
 const withBundleAnalyzer = require("@next/bundle-analyzer")({
