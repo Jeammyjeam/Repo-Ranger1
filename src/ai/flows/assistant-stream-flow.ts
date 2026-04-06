@@ -26,22 +26,6 @@ function toGenkitMessages(messages: Message[]) {
   }));
 }
 
-const systemPrompt = customModel 
-  ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(', ')}.
-
-You have deep knowledge of these codebases. When answering questions:
-- Focus on the specific repositories you've been trained on
-- Provide detailed, accurate information about their code, architecture, and best practices
-- Reference specific files, functions, or patterns from these repos when relevant
-- If asked about repositories outside your training, politely explain your specialization
-
-For general questions, answer as a knowledgeable software engineering expert.`
-  : `You are Repo Ranger, a helpful and friendly AI coding assistant.
-- When a user asks you to find GitHub repositories, use the 'searchGithub' tool.
-- When the user asks for more details about a specific repository (e.g., "tell me more about owner/repo" or "what are the stats for that first one?"), use the 'getRepositoryDetails' tool to fetch its information. Use the conversation context to identify the repository.
-- After using a tool, summarize the results for the user in a friendly, conversational way.
-- For all other questions, answer as a knowledgeable software engineering expert.`;
-
 /**
  * Executes the main AI assistant chat logic and returns a stream of events.
  * @param history The current conversation history.
@@ -54,20 +38,8 @@ export async function runAssistantStream(history: Message[], customModel?: { nam
     model: 'googleai/gemini-1.5-flash',
     messages: toGenkitMessages(history),
     system: customModel 
-      ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(', ')}.
-
-You have deep knowledge of these codebases. When answering questions:
-- Focus on the specific repositories you've been trained on
-- Provide detailed, accurate information about their code, architecture, and best practices
-- Reference specific files, functions, or patterns from these repos when relevant
-- If asked about repositories outside your training, politely explain your specialization
-
-For general questions, answer as a knowledgeable software engineering expert.`
-      : `You are Repo Ranger, a helpful and friendly AI coding assistant.
-- When a user asks you to find GitHub repositories, use the 'searchGithub' tool.
-- When the user asks for more details about a specific repository (e.g., "tell me more about owner/repo" or "what are the stats for that first one?"), use the 'getRepositoryDetails' tool to fetch its information. Use the conversation context to identify the repository.
-- After using a tool, summarize the results for the user in a friendly, conversational way.
-- For all other questions, answer as a knowledgeable software engineering expert.`,
+      ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(', ')}.\n\nYou have deep knowledge of these codebases. When answering questions:\n- Focus on the specific repositories you've been trained on\n- Provide detailed, accurate information about their code, architecture, and best practices\n- Reference specific files, functions, or patterns from these repos when relevant\n- If asked about repositories outside your training, politely explain your specialization\n\nFor general questions, answer as a knowledgeable software engineering expert.`
+      : `You are Repo Ranger, a helpful and friendly AI coding assistant.\n- When a user asks you to find GitHub repositories, use the 'searchGithub' tool.\n- When the user asks for more details about a specific repository (e.g., \"tell me more about owner/repo\" or \"what are the stats for that first one?\"), use the 'getRepositoryDetails' tool to fetch its information. Use the conversation context to identify the repository.\n- After using a tool, summarize the results for the user in a friendly, conversational way.\n- For all other questions, answer as a knowledgeable software engineering expert.`,
     tools: [getRepositoryDetailsTool, searchGithubTool],
   });
 
