@@ -43,7 +43,6 @@ function generateCSV(repos: Repository[]): string {
         const language = repo.language || '';
         const license = repo.license?.name || '';
         const url = repo.html_url;
-        // Descriptions can have commas, so we need to wrap them in quotes.
         const description = `"${(repo.description || '').replace(/"/g, '""')}"`;
         return [name, owner, stars, forks, language, license, url, description].join(',');
     });
@@ -79,3 +78,8 @@ export function triggerDownload(content: string, filename: string, mimeType: str
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
+
+export const exportToMarkdown = generateMarkdown;
+export const exportToJSON = generateJSON;
+export const exportToCSV = generateCSV;
+export const downloadFile = triggerDownload;
