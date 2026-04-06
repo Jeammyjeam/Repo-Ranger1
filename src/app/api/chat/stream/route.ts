@@ -8,13 +8,13 @@ import type { Message } from '@/components/chat-interface';
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages }: { messages: Message[] } = await req.json();
+    const { messages, customModel }: { messages: Message[], customModel?: { name: string, repositories: string[] } | null } = await req.json();
 
     if (!messages) {
       return NextResponse.json({ error: 'Missing messages in request body' }, { status: 400 });
     }
 
-    const stream = await runAssistantStream(messages);
+    const stream = await runAssistantStream(messages, customModel);
     
     // The stream from runAssistantStream is already encoded as text/plain
     return new Response(stream, {

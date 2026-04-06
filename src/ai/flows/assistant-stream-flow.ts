@@ -26,7 +26,17 @@ function toGenkitMessages(messages: Message[]) {
   }));
 }
 
-const systemPrompt = `You are Repo Ranger, a helpful and friendly AI coding assistant.
+const systemPrompt = customModel 
+  ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(', ')}.
+
+You have deep knowledge of these codebases. When answering questions:
+- Focus on the specific repositories you've been trained on
+- Provide detailed, accurate information about their code, architecture, and best practices
+- Reference specific files, functions, or patterns from these repos when relevant
+- If asked about repositories outside your training, politely explain your specialization
+
+For general questions, answer as a knowledgeable software engineering expert.`
+  : `You are Repo Ranger, a helpful and friendly AI coding assistant.
 - When a user asks you to find GitHub repositories, use the 'searchGithub' tool.
 - When the user asks for more details about a specific repository (e.g., "tell me more about owner/repo" or "what are the stats for that first one?"), use the 'getRepositoryDetails' tool to fetch its information. Use the conversation context to identify the repository.
 - After using a tool, summarize the results for the user in a friendly, conversational way.
@@ -35,14 +45,29 @@ const systemPrompt = `You are Repo Ranger, a helpful and friendly AI coding assi
 /**
  * Executes the main AI assistant chat logic and returns a stream of events.
  * @param history The current conversation history.
+ * @param customModel Optional custom model configuration.
  * @returns A ReadableStream that emits JSON objects representing chat events.
  */
-export async function runAssistantStream(history: Message[]) {
+export async function runAssistantStream(history: Message[], customModel?: { name: string, repositories: string[] } | null) {
   // Use generateStream which returns both a stream and a final response promise.
   const { stream, response } = ai.generateStream({
     model: 'googleai/gemini-1.5-flash',
     messages: toGenkitMessages(history),
-    system: systemPrompt,
+    system: customModel 
+      ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(', ')}.
+
+You have deep knowledge of these codebases. When answering questions:
+- Focus on the specific repositories you've been trained on
+- Provide detailed, accurate information about their code, architecture, and best practices
+- Reference specific files, functions, or patterns from these repos when relevant
+- If asked about repositories outside your training, politely explain your specialization
+
+For general questions, answer as a knowledgeable software engineering expert.`
+      : `You are Repo Ranger, a helpful and friendly AI coding assistant.
+- When a user asks you to find GitHub repositories, use the 'searchGithub' tool.
+- When the user asks for more details about a specific repository (e.g., "tell me more about owner/repo" or "what are the stats for that first one?"), use the 'getRepositoryDetails' tool to fetch its information. Use the conversation context to identify the repository.
+- After using a tool, summarize the results for the user in a friendly, conversational way.
+- For all other questions, answer as a knowledgeable software engineering expert.`,
     tools: [getRepositoryDetailsTool, searchGithubTool],
   });
 

@@ -11,7 +11,7 @@ import {
     query,
     orderBy
 } from 'firebase/firestore';
-import type { Repository } from './types';
+import type { Repository, CustomModel } from './types';
 
 // Helper to create a sanitized object for saving to prevent storing overly large objects
 const createRepoData = (repo: Repository) => ({
@@ -249,4 +249,37 @@ export async function loadConversationSummaries(db: Firestore, userId: string) {
 export async function deleteConversation(db: Firestore, userId: string, conversationId: string) {
   const chatRef = doc(db, 'users', userId, 'conversations', conversationId);
   await deleteDoc(chatRef);
+}
+
+// --- CUSTOM AI MODELS ---
+export async function createCustomModel(db: Firestore, userId: string, modelData: Omit<CustomModel, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) {
+  const modelsRef = collection(db, 'users', userId, 'custom_models');
+  const newModelRef = doc(modelsRef);
+  
+  const data = {
+    ...modelData,
+    userId,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  };
+  
+  await setDoc(newModelRef, data);
+  return newModelRef.id;
+}
+
+export async function getCustomModels(db: Firestore, userId: string) {
+  const q = query(collection(db, 'users', userId, 'custom_models'), orderBy('createdAt', 'desc'));
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(doc => ({
+    id: doc.id,
+    ...doc.data(),
+    createdAt: doc.data().createdAt?.toDate(),
+    updatedAt: doc.data().updatedAt?.toDate(),
+  })) as CustomModel[];
+}
+
+export async function deleteCustomModel(db: Firestore, userId: string, modelId: string) {
+  const modelRef = doc(db, 'users', userId, 'custom_models', modelId);
+  await deleteDoc(modelRef);
 }

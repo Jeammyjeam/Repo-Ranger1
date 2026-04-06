@@ -30,16 +30,27 @@ export interface Message {
   steps?: { type: 'tool_request' | 'tool_result'; name: string; payload: any; }[];
 }
 
-const getWelcomeMessage = (): Message => {
+const getWelcomeMessage = (customModel?: any): Message => {
+  const baseMessage = `Hi! I'm Repo Ranger, your AI coding assistant.`;
+  
+  if (customModel) {
+    return {
+      id: 'welcome-message',
+      role: 'model',
+      content: `Hi! I'm ${customModel.name}, your specialized AI assistant trained on ${customModel.repositories.join(', ')}. I have deep knowledge of these codebases and can help you with questions about them.`,
+      timestamp: new Date(),
+    };
+  }
+  
   return {
     id: 'welcome-message',
     role: 'model',
-    content: `Hi! I'm Repo Ranger, your AI coding assistant. What can I help you find or build today?`,
+    content: `${baseMessage} What can I help you find or build today?`,
     timestamp: new Date(),
   };
 };
 
-export function ChatInterface({ conversationId: propConversationId, onConversationCreated }: { conversationId: string | null, onConversationCreated: (newId: string) => void }) {
+export function ChatInterface({ conversationId: propConversationId, onConversationCreated, customModel }: { conversationId: string | null, onConversationCreated: (newId: string) => void, customModel?: any }) {
   const { user } = useUser();
   const db = useFirestore();
   const { toast } = useToast();
@@ -73,7 +84,7 @@ export function ChatInterface({ conversationId: propConversationId, onConversati
   useEffect(() => {
     const loadHistory = async () => {
       if (!user || !db || !conversationId) {
-        setMessages([getWelcomeMessage()]);
+        setMessages([getWelcomeMessage(customModel)]);
         if (conversationId) setConversationId(null);
         return;
       }
@@ -87,12 +98,12 @@ export function ChatInterface({ conversationId: propConversationId, onConversati
             timestamp: (msg.timestamp as any)?.toDate() || new Date(),
           })));
         } else {
-          setMessages([getWelcomeMessage()]);
+          setMessages([getWelcomeMessage(customModel)]);
           setConversationId(null);
         }
       } catch (err) {
         toast({ variant: 'destructive', title: 'Error Loading Chat', description: 'Could not load the conversation.' });
-        setMessages([getWelcomeMessage()]);
+        setMessages([getWelcomeMessage(customModel)]);
       } finally {
         setIsProcessing(false);
       }
@@ -118,7 +129,13 @@ export function ChatInterface({ conversationId: propConversationId, onConversati
       const response = await fetch('/api/chat/stream', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...historyForApi, userMessage] }),
+        body: JSON.stringify({ 
+          messages: [...historyForApi, userMessage],
+          customModel: customModel ? {
+            name: customModel.name,
+            repositories: customModel.repositories
+          } : null
+        }),
       });
 
       if (!response.ok || !response.body) throw new Error(await response.text() || 'Failed to get streaming response.');
