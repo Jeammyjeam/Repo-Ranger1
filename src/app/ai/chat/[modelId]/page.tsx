@@ -1,16 +1,16 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { useUser, useFirestore } from '@/firebase';
-import { Header } from '@/components/header';
-import { AuthGuard } from '@/components/auth-guard';
-import { ChatInterface } from '@/components/chat-interface';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, Bot } from 'lucide-react';
-import Link from 'next/link';
-import { getCustomModels } from '@/lib/firestore';
-import type { CustomModel } from '@/lib/types';
+import { useState, useEffect } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { useUser, useFirestore } from "@/firebase";
+import { Header } from "@/components/header";
+import { AuthGuard } from "@/components/auth-guard";
+import { ChatInterface } from "@/components/chat-interface";
+import { Button } from "@/components/ui/button";
+import { ArrowLeft, Bot } from "lucide-react";
+import Link from "next/link";
+import { getCustomModels } from "@/lib/firestore";
+import type { CustomModel } from "@/lib/types";
 
 export default function CustomModelChatPage() {
   const { user } = useUser();
@@ -33,17 +33,17 @@ export default function CustomModelChatPage() {
 
     try {
       const models = await getCustomModels(db, user.uid);
-      const foundModel = models.find(m => m.id === modelId);
-      
+      const foundModel = models.find((m) => m.id === modelId);
+
       if (foundModel) {
         setModel(foundModel);
       } else {
         // Model not found, redirect
-        router.push('/ai');
+        router.push("/ai");
       }
     } catch (error) {
-      console.error('Failed to load model:', error);
-      router.push('/ai');
+      console.error("Failed to load model:", error);
+      router.push("/ai");
     } finally {
       setIsLoading(false);
     }
@@ -117,13 +117,15 @@ export default function CustomModelChatPage() {
                 )}
               </div>
             </div>
-            
+
             <div className="mb-4">
-              <p className="text-sm text-muted-foreground mb-2">Trained on repositories:</p>
+              <p className="text-sm text-muted-foreground mb-2">
+                Trained on repositories:
+              </p>
               <div className="flex flex-wrap gap-2">
                 {model.repositories.map((repo) => (
-                  <Link 
-                    key={repo} 
+                  <Link
+                    key={repo}
                     href={`/repo/${repo}`}
                     className="text-sm bg-secondary hover:bg-secondary/80 px-2 py-1 rounded-md transition-colors"
                   >
@@ -133,8 +135,8 @@ export default function CustomModelChatPage() {
               </div>
             </div>
 
-            <ChatInterface 
-              conversationId={`custom-${modelId}`} 
+            <ChatInterface
+              conversationId={`custom-${modelId}`}
               onConversationCreated={() => {}}
               customModel={model}
             />

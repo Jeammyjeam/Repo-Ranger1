@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 /**
  * @fileOverview This flow handles the main AI assistant chat functionality,
@@ -8,10 +8,10 @@
  *   conversation history and returns a stream of events (text, tool requests).
  */
 
-import { ai } from '@/ai/genkit';
-import type { Message } from '@/components/chat-interface';
-import { getRepositoryDetailsTool } from '@/ai/tools/get-repository-details-tool';
-import { searchGithubTool } from '@/ai/tools/search-github-tool';
+import { ai } from "@/ai/genkit";
+import type { Message } from "@/components/chat-interface";
+import { getRepositoryDetailsTool } from "@/ai/tools/get-repository-details-tool";
+import { searchGithubTool } from "@/ai/tools/search-github-tool";
 
 /**
  * Maps the application's Message type to the Genkit Message type.
@@ -20,14 +20,16 @@ import { searchGithubTool } from '@/ai/tools/search-github-tool';
  */
 function toGenkitMessages(messages: Message[]) {
   // The system prompt is managed in this flow, so filter out any welcome messages from history.
-  return messages.filter(m => !m.id.startsWith('welcome-')).map(msg => ({
-    role: msg.role,
-    content: [{ text: msg.content }],
-  }));
+  return messages
+    .filter((m) => !m.id.startsWith("welcome-"))
+    .map((msg) => ({
+      role: msg.role,
+      content: [{ text: msg.content }],
+    }));
 }
 
-const systemPrompt = customModel 
-  ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(', ')}.
+const systemPrompt = customModel
+  ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(", ")}.
 
 You have deep knowledge of these codebases. When answering questions:
 - Focus on the specific repositories you've been trained on
@@ -48,13 +50,16 @@ For general questions, answer as a knowledgeable software engineering expert.`
  * @param customModel Optional custom model configuration.
  * @returns A ReadableStream that emits JSON objects representing chat events.
  */
-export async function runAssistantStream(history: Message[], customModel?: { name: string, repositories: string[] } | null) {
+export async function runAssistantStream(
+  history: Message[],
+  customModel?: { name: string; repositories: string[] } | null,
+) {
   // Use generateStream which returns both a stream and a final response promise.
   const { stream, response } = ai.generateStream({
-    model: 'googleai/gemini-1.5-flash',
+    model: "googleai/gemini-1.5-flash",
     messages: toGenkitMessages(history),
-    system: customModel 
-      ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(', ')}.
+    system: customModel
+      ? `You are ${customModel.name}, a specialized AI assistant trained on the following repositories: ${customModel.repositories.join(", ")}.
 
 You have deep knowledge of these codebases. When answering questions:
 - Focus on the specific repositories you've been trained on
@@ -76,34 +81,35 @@ For general questions, answer as a knowledgeable software engineering expert.`
     async start(controller) {
       const encoder = new TextEncoder();
       const enqueue = (data: object) => {
-        controller.enqueue(encoder.encode(JSON.stringify(data) + '\n'));
+        controller.enqueue(encoder.encode(JSON.stringify(data) + "\n"));
       };
 
       try {
         for await (const chunk of stream) {
           if (chunk.content) {
-            const text = chunk.content.map(part => part.text).join('');
+            const text = chunk.content.map((part) => part.text).join("");
             if (text) {
-              enqueue({ type: 'content', chunk: text });
+              enqueue({ type: "content", chunk: text });
             }
           } else if (chunk.toolRequests && chunk.toolRequests.length > 0) {
             // Iterate through the array of tool request parts
             chunk.toolRequests.forEach((part) => {
               if (part.toolRequest) {
-                enqueue({ 
-                  type: 'tool_request', 
-                  name: part.toolRequest.name, 
-                  args: part.toolRequest.input 
+                enqueue({
+                  type: "tool_request",
+                  name: part.toolRequest.name,
+                  args: part.toolRequest.input,
                 });
               }
             });
           }
         }
-        enqueue({ type: 'done' });
-      } catch(e) {
+        enqueue({ type: "done" });
+      } catch (e) {
         console.error("Error processing stream:", e);
-        const errorMessage = e instanceof Error ? e.message : "An unknown stream error occurred.";
-        enqueue({ type: 'error', message: errorMessage });
+        const errorMessage =
+          e instanceof Error ? e.message : "An unknown stream error occurred.";
+        enqueue({ type: "error", message: errorMessage });
       } finally {
         controller.close();
         // Await the full response promise at the end to finalize the operation and log metrics.

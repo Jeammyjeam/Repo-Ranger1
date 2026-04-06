@@ -1,17 +1,17 @@
-'use client';
+"use client";
 import {
-    collection,
-    doc,
-    setDoc,
-    deleteDoc,
-    serverTimestamp,
-    Firestore,
-    getDoc,
-    getDocs,
-    query,
-    orderBy
-} from 'firebase/firestore';
-import type { Repository, CustomModel } from './types';
+  collection,
+  doc,
+  setDoc,
+  deleteDoc,
+  serverTimestamp,
+  Firestore,
+  getDoc,
+  getDocs,
+  query,
+  orderBy,
+} from "firebase/firestore";
+import type { Repository, CustomModel } from "./types";
 
 // Helper to create a sanitized object for saving to prevent storing overly large objects
 const createRepoData = (repo: Repository) => ({
@@ -25,54 +25,95 @@ const createRepoData = (repo: Repository) => ({
   language: repo.language,
   updated_at: repo.updated_at,
   owner: {
-      login: repo.owner.login,
-      avatar_url: repo.owner.avatar_url,
-      html_url: repo.owner.html_url,
+    login: repo.owner.login,
+    avatar_url: repo.owner.avatar_url,
+    html_url: repo.owner.html_url,
   },
   topics: repo.topics || [],
 });
 
-
 // --- SAVING REPOS ---
-export async function saveRepo(db: Firestore, userId: string, repo: Repository) {
-  const repoRef = doc(db, 'users', userId, 'saved_repos', repo.id.toString());
+export async function saveRepo(
+  db: Firestore,
+  userId: string,
+  repo: Repository,
+) {
+  const repoRef = doc(db, "users", userId, "saved_repos", repo.id.toString());
   const dataToSave = {
     ...createRepoData(repo),
-    savedAt: serverTimestamp()
+    savedAt: serverTimestamp(),
   };
   await setDoc(repoRef, dataToSave);
 }
 
-export async function removeRepoFromAllCollections(db: Firestore, userId: string, repoId: number) {
-  const collectionsQuery = query(collection(db, 'users', userId, 'collections'));
+export async function removeRepoFromAllCollections(
+  db: Firestore,
+  userId: string,
+  repoId: number,
+) {
+  const collectionsQuery = query(
+    collection(db, "users", userId, "collections"),
+  );
   const collectionsSnapshot = await getDocs(collectionsQuery);
 
-  const removalPromises = collectionsSnapshot.docs.map(async (collectionDoc) => {
-    const collectionId = collectionDoc.id;
-    const itemRef = doc(db, 'users', userId, 'collections', collectionId, 'items', repoId.toString());
+  const removalPromises = collectionsSnapshot.docs.map(
+    async (collectionDoc) => {
+      const collectionId = collectionDoc.id;
+      const itemRef = doc(
+        db,
+        "users",
+        userId,
+        "collections",
+        collectionId,
+        "items",
+        repoId.toString(),
+      );
 
-    await deleteDoc(itemRef);
+      await deleteDoc(itemRef);
 
-    const collectionRef = doc(db, 'users', userId, 'collections', collectionId);
-    const collectionDocSnapshot = await getDoc(collectionRef);
-    if (collectionDocSnapshot.exists()) {
-      const currentCount = collectionDocSnapshot.data().itemCount || 0;
-      await setDoc(collectionRef, { itemCount: Math.max(0, currentCount - 1), updatedAt: serverTimestamp() }, { merge: true });
-    }
-  });
+      const collectionRef = doc(
+        db,
+        "users",
+        userId,
+        "collections",
+        collectionId,
+      );
+      const collectionDocSnapshot = await getDoc(collectionRef);
+      if (collectionDocSnapshot.exists()) {
+        const currentCount = collectionDocSnapshot.data().itemCount || 0;
+        await setDoc(
+          collectionRef,
+          {
+            itemCount: Math.max(0, currentCount - 1),
+            updatedAt: serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+    },
+  );
 
   await Promise.all(removalPromises);
 }
 
-export async function unsaveRepo(db: Firestore, userId: string, repoId: number) {
-  const repoRef = doc(db, 'users', userId, 'saved_repos', repoId.toString());
+export async function unsaveRepo(
+  db: Firestore,
+  userId: string,
+  repoId: number,
+) {
+  const repoRef = doc(db, "users", userId, "saved_repos", repoId.toString());
   await deleteDoc(repoRef);
   await removeRepoFromAllCollections(db, userId, repoId);
 }
 
 // --- COLLECTIONS ---
-export async function createCollection(db: Firestore, userId: string, name: string, description?: string) {
-  const collectionRef = doc(collection(db, 'users', userId, 'collections'));
+export async function createCollection(
+  db: Firestore,
+  userId: string,
+  name: string,
+  description?: string,
+) {
+  const collectionRef = doc(collection(db, "users", userId, "collections"));
   const dataToSave = {
     userId,
     name,
@@ -85,26 +126,40 @@ export async function createCollection(db: Firestore, userId: string, name: stri
   return collectionRef.id;
 }
 
-export async function deleteCollection(db: Firestore, userId: string, collectionId: string) {
+export async function deleteCollection(
+  db: Firestore,
+  userId: string,
+  collectionId: string,
+) {
   // Delete all items in the collection first
-  const itemsQuery = query(collection(db, 'users', userId, 'collections', collectionId, 'items'));
+  const itemsQuery = query(
+    collection(db, "users", userId, "collections", collectionId, "items"),
+  );
   const itemsSnapshot = await getDocs(itemsQuery);
-  const deletePromises = itemsSnapshot.docs.map(doc => deleteDoc(doc.ref));
+  const deletePromises = itemsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
   await Promise.all(deletePromises);
 
   // Delete the collection
-  const collectionRef = doc(db, 'users', userId, 'collections', collectionId);
+  const collectionRef = doc(db, "users", userId, "collections", collectionId);
   await deleteDoc(collectionRef);
 }
 
-export async function saveRepoToCollection(db: Firestore, userId: string, collectionId: string, repo: Repository) {
-  const itemRef = doc(collection(db, 'users', userId, 'collections', collectionId, 'items'), repo.id.toString());
+export async function saveRepoToCollection(
+  db: Firestore,
+  userId: string,
+  collectionId: string,
+  repo: Repository,
+) {
+  const itemRef = doc(
+    collection(db, "users", userId, "collections", collectionId, "items"),
+    repo.id.toString(),
+  );
   const itemDoc = await getDoc(itemRef);
   const dataToSave = {
     id: repo.id.toString(),
     collectionId,
     userId,
-    type: 'github',
+    type: "github",
     addedAt: serverTimestamp(),
     itemData: createRepoData(repo),
   };
@@ -113,33 +168,62 @@ export async function saveRepoToCollection(db: Firestore, userId: string, collec
 
   // Update collection item count only when the item is new.
   if (!itemDoc.exists()) {
-    const collectionRef = doc(db, 'users', userId, 'collections', collectionId);
+    const collectionRef = doc(db, "users", userId, "collections", collectionId);
     const collectionDoc = await getDoc(collectionRef);
     if (collectionDoc.exists()) {
       const currentCount = collectionDoc.data().itemCount || 0;
-      await setDoc(collectionRef, { itemCount: currentCount + 1, updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(
+        collectionRef,
+        { itemCount: currentCount + 1, updatedAt: serverTimestamp() },
+        { merge: true },
+      );
     }
   }
 }
 
-export async function removeRepoFromCollection(db: Firestore, userId: string, collectionId: string, repoId: string) {
-  const itemRef = doc(db, 'users', userId, 'collections', collectionId, 'items', repoId);
+export async function removeRepoFromCollection(
+  db: Firestore,
+  userId: string,
+  collectionId: string,
+  repoId: string,
+) {
+  const itemRef = doc(
+    db,
+    "users",
+    userId,
+    "collections",
+    collectionId,
+    "items",
+    repoId,
+  );
   const itemDoc = await getDoc(itemRef);
   if (itemDoc.exists()) {
     await deleteDoc(itemRef);
 
-    const collectionRef = doc(db, 'users', userId, 'collections', collectionId);
+    const collectionRef = doc(db, "users", userId, "collections", collectionId);
     const collectionDoc = await getDoc(collectionRef);
     if (collectionDoc.exists()) {
       const currentCount = collectionDoc.data().itemCount || 0;
-      await setDoc(collectionRef, { itemCount: Math.max(0, currentCount - 1), updatedAt: serverTimestamp() }, { merge: true });
+      await setDoc(
+        collectionRef,
+        {
+          itemCount: Math.max(0, currentCount - 1),
+          updatedAt: serverTimestamp(),
+        },
+        { merge: true },
+      );
     }
   }
 }
 
-export async function migrateSavedReposToDefaultCollection(db: Firestore, userId: string) {
+export async function migrateSavedReposToDefaultCollection(
+  db: Firestore,
+  userId: string,
+) {
   // Check if user already has collections
-  const collectionsQuery = query(collection(db, 'users', userId, 'collections'));
+  const collectionsQuery = query(
+    collection(db, "users", userId, "collections"),
+  );
   const collectionsSnapshot = await getDocs(collectionsQuery);
 
   if (!collectionsSnapshot.empty) {
@@ -147,10 +231,18 @@ export async function migrateSavedReposToDefaultCollection(db: Firestore, userId
   }
 
   // Create default collection
-  const defaultCollectionId = await createCollection(db, userId, 'My Repositories', 'Default collection for saved repositories');
+  const defaultCollectionId = await createCollection(
+    db,
+    userId,
+    "My Repositories",
+    "Default collection for saved repositories",
+  );
 
   // Get all saved repos
-  const savedReposQuery = query(collection(db, 'users', userId, 'saved_repos'), orderBy('savedAt', 'desc'));
+  const savedReposQuery = query(
+    collection(db, "users", userId, "saved_repos"),
+    orderBy("savedAt", "desc"),
+  );
   const savedReposSnapshot = await getDocs(savedReposQuery);
 
   // Move each repo to the default collection
@@ -163,38 +255,76 @@ export async function migrateSavedReposToDefaultCollection(db: Firestore, userId
   await Promise.all(migrationPromises);
 }
 
-
 // --- ARCHIVING REPOS ---
-export async function archiveRepo(db: Firestore, userId: string, repo: Repository) {
-  const archiveRef = doc(db, 'users', userId, 'archived_repos', repo.id.toString());
+export async function archiveRepo(
+  db: Firestore,
+  userId: string,
+  repo: Repository,
+) {
+  const archiveRef = doc(
+    db,
+    "users",
+    userId,
+    "archived_repos",
+    repo.id.toString(),
+  );
   const dataToSave = {
     ...createRepoData(repo),
-    archivedAt: serverTimestamp()
+    archivedAt: serverTimestamp(),
   };
   await setDoc(archiveRef, dataToSave);
 }
 
-export async function unarchiveRepo(db: Firestore, userId: string, repoId: number) {
-  const archiveRef = doc(db, 'users', userId, 'archived_repos', repoId.toString());
+export async function unarchiveRepo(
+  db: Firestore,
+  userId: string,
+  repoId: number,
+) {
+  const archiveRef = doc(
+    db,
+    "users",
+    userId,
+    "archived_repos",
+    repoId.toString(),
+  );
   await deleteDoc(archiveRef);
 }
 
-
 // --- STATUS CHECK ---
-export async function getRepoStatus(db: Firestore, userId: string, repoId: number) {
+export async function getRepoStatus(
+  db: Firestore,
+  userId: string,
+  repoId: number,
+) {
   // Check old saved_repos collection
-  const savedRef = doc(db, 'users', userId, 'saved_repos', repoId.toString());
-  const archivedRef = doc(db, 'users', userId, 'archived_repos', repoId.toString());
+  const savedRef = doc(db, "users", userId, "saved_repos", repoId.toString());
+  const archivedRef = doc(
+    db,
+    "users",
+    userId,
+    "archived_repos",
+    repoId.toString(),
+  );
 
   // Check if repo exists in any collection
-  const collectionsQuery = query(collection(db, 'users', userId, 'collections'));
+  const collectionsQuery = query(
+    collection(db, "users", userId, "collections"),
+  );
   const collectionsSnapshot = await getDocs(collectionsQuery);
 
   let collectionCount = 0;
   let isInCollection = false;
   for (const collectionDoc of collectionsSnapshot.docs) {
     const collectionId = collectionDoc.id;
-    const itemRef = doc(db, 'users', userId, 'collections', collectionId, 'items', repoId.toString());
+    const itemRef = doc(
+      db,
+      "users",
+      userId,
+      "collections",
+      collectionId,
+      "items",
+      repoId.toString(),
+    );
     const itemSnap = await getDoc(itemRef);
     if (itemSnap.exists()) {
       isInCollection = true;
@@ -202,7 +332,10 @@ export async function getRepoStatus(db: Firestore, userId: string, repoId: numbe
     }
   }
 
-  const [savedSnap, archivedSnap] = await Promise.all([getDoc(savedRef), getDoc(archivedRef)]);
+  const [savedSnap, archivedSnap] = await Promise.all([
+    getDoc(savedRef),
+    getDoc(archivedRef),
+  ]);
 
   return {
     isSaved: savedSnap.exists() || isInCollection,
@@ -213,65 +346,94 @@ export async function getRepoStatus(db: Firestore, userId: string, repoId: numbe
 
 // --- CHAT CONVERSATIONS ---
 
-export async function saveConversation(db: Firestore, userId: string, conversationId: string, messages: any[]) {
-  const chatRef = doc(db, 'users', userId, 'conversations', conversationId);
-  const lastUserMessage = messages.slice().reverse().find(m => m.role === 'user');
-  
-  // Create a summary from the last user message or a default.
-  const lastMessage = lastUserMessage ? lastUserMessage.content.substring(0, 100) : 'New Chat';
+export async function saveConversation(
+  db: Firestore,
+  userId: string,
+  conversationId: string,
+  messages: any[],
+) {
+  const chatRef = doc(db, "users", userId, "conversations", conversationId);
+  const lastUserMessage = messages
+    .slice()
+    .reverse()
+    .find((m) => m.role === "user");
 
-  await setDoc(chatRef, {
-    id: conversationId,
-    lastMessage,
-    messages: messages,
-    updatedAt: serverTimestamp()
-  }, { merge: true });
+  // Create a summary from the last user message or a default.
+  const lastMessage = lastUserMessage
+    ? lastUserMessage.content.substring(0, 100)
+    : "New Chat";
+
+  await setDoc(
+    chatRef,
+    {
+      id: conversationId,
+      lastMessage,
+      messages: messages,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true },
+  );
 }
 
-export async function loadConversation(db: Firestore, userId: string, conversationId: string) {
-  const chatRef = doc(db, 'users', userId, 'conversations', conversationId);
+export async function loadConversation(
+  db: Firestore,
+  userId: string,
+  conversationId: string,
+) {
+  const chatRef = doc(db, "users", userId, "conversations", conversationId);
   const snapshot = await getDoc(chatRef);
   return snapshot.exists() ? snapshot.data() : null;
 }
 
 export async function loadConversationSummaries(db: Firestore, userId: string) {
-  const chatsRef = collection(db, 'users', userId, 'conversations');
-  const q = query(chatsRef, orderBy('updatedAt', 'desc'));
+  const chatsRef = collection(db, "users", userId, "conversations");
+  const q = query(chatsRef, orderBy("updatedAt", "desc"));
   const snapshot = await getDocs(q);
-  
-  return snapshot.docs.map(doc => ({
+
+  return snapshot.docs.map((doc) => ({
     id: doc.id,
-    lastMessage: doc.data().lastMessage || 'New Chat',
-    updatedAt: doc.data().updatedAt
+    lastMessage: doc.data().lastMessage || "New Chat",
+    updatedAt: doc.data().updatedAt,
   }));
 }
 
-export async function deleteConversation(db: Firestore, userId: string, conversationId: string) {
-  const chatRef = doc(db, 'users', userId, 'conversations', conversationId);
+export async function deleteConversation(
+  db: Firestore,
+  userId: string,
+  conversationId: string,
+) {
+  const chatRef = doc(db, "users", userId, "conversations", conversationId);
   await deleteDoc(chatRef);
 }
 
 // --- CUSTOM AI MODELS ---
-export async function createCustomModel(db: Firestore, userId: string, modelData: Omit<CustomModel, 'id' | 'userId' | 'createdAt' | 'updatedAt'>) {
-  const modelsRef = collection(db, 'users', userId, 'custom_models');
+export async function createCustomModel(
+  db: Firestore,
+  userId: string,
+  modelData: Omit<CustomModel, "id" | "userId" | "createdAt" | "updatedAt">,
+) {
+  const modelsRef = collection(db, "users", userId, "custom_models");
   const newModelRef = doc(modelsRef);
-  
+
   const data = {
     ...modelData,
     userId,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   };
-  
+
   await setDoc(newModelRef, data);
   return newModelRef.id;
 }
 
 export async function getCustomModels(db: Firestore, userId: string) {
-  const q = query(collection(db, 'users', userId, 'custom_models'), orderBy('createdAt', 'desc'));
+  const q = query(
+    collection(db, "users", userId, "custom_models"),
+    orderBy("createdAt", "desc"),
+  );
   const snapshot = await getDocs(q);
-  
-  return snapshot.docs.map(doc => ({
+
+  return snapshot.docs.map((doc) => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toDate(),
@@ -279,7 +441,11 @@ export async function getCustomModels(db: Firestore, userId: string) {
   })) as CustomModel[];
 }
 
-export async function deleteCustomModel(db: Firestore, userId: string, modelId: string) {
-  const modelRef = doc(db, 'users', userId, 'custom_models', modelId);
+export async function deleteCustomModel(
+  db: Firestore,
+  userId: string,
+  modelId: string,
+) {
+  const modelRef = doc(db, "users", userId, "custom_models", modelId);
   await deleteDoc(modelRef);
 }
